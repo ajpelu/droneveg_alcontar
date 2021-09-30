@@ -152,7 +152,22 @@ We explore the correlation bewteen drone-field measurement for each of the cover
 ```{r}
 df.rmse2 <- df %>% group_by(coverclass) %>% 
   summarise(rmse = round(
-    Metrics::rmse(cov.drone2, cov.campo),4))
+    Metrics::rmse(cov.drone2, cov.campo),4),
+    min = min(cov.campo), 
+    max = max(cov.campo),
+    rmsen.minmax = rmse / (max(cov.campo) - min(cov.campo))*100)
+
+# see also hydroGOF pkg for RMSE et al. 
+```
+
+```{r}
+df.rmse2 %>% kbl(col.names = c("cover class",
+                               "RMSE",
+                               "min.",
+                               "max.",
+                               "norm. RMSE %"),
+                 digits = c(0,2,0,0,2)) %>% 
+  kable_material()
 ```
 
 
