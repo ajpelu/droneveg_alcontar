@@ -10,7 +10,7 @@ navbar:
   right:
   - icon: fa-github
     text: Source code
-    href: https://github.com/ajpelu/dronveg_alcontar
+    href: https://github.com/serpam/dronveg_alcontar
 output:
   bookdown::html_document2:
     base_format: workflowr::wflow_html
