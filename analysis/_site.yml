@@ -1,14 +1,16 @@
-name: "dronveg_alcontar"
+name: dronveg_alcontar
 output_dir: ../docs
 navbar:
-  title: "dronveg_alcontar"
+  title: Vegetation parameters estimated by drone (Alcóntar, Sierra Filabres)
   left:
   - text: Home
     href: index.html
   - text: About
     href: about.html
-  - text: License
-    href: license.html
+  right:
+  - icon: fa-github
+    text: Source code
+    href: https://github.com/ajpelu/dronveg_alcontar
 output:
   bookdown::html_document2:
     base_format: workflowr::wflow_html
