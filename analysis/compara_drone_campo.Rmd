@@ -1,0 +1,665 @@
+---
+title: "Comparison drone_campo"
+date: "2021-09-23"
+output: 
+  workflowr::wflow_html:
+    toc: true
+editor_options:
+  chunk_output_type: console
+bibliography: references.bib
+csl: ecology-letters.csl
+---
+
+## Introduction
+- Read and prepare data 
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, 
+                      warning = FALSE, 
+                      message = FALSE,
+                      fig.width=10, fig.height=7)
+```
+
+```{r}
+library(here)
+library(tidyverse)
+library(readxl)
+library(plotrix)
+library(DT)
+library(plotly)
+library(ggstatsplot)
+library(patchwork)
+library(cowplot)
+library(ggiraph)
+library(yardstick)
+library(Metrics)
+library(modelr)
+library(sjPlot)
+library(nlstools)
+library(kableExtra)
+library(broom)
+library(purrr)
+library(tidymodels)
+library(ggpmisc)
+library(fuzzySim)
+library(ggpubr)
+```
+
+Summary of the analysis: 
+
+- Two drone methods (TODO: Document): 
+
+  - AREA_VEG_m2 rename as cov.drone1 
+  - COBERTURA rename as cov.drone2 
+  
+- Ground-field coverage measures (COB_TOTAL_M2), rename as cov.campo
+- Explore by coverage class. 
+- Another variables to consider: 
+  
+  - Shannon diversity index 
+  - Phytovolumen (m^3/ha)
+  - Richness 
+  - Slope (derived of DEM from drone)
+
+```{r}
+cob.raw <- read_excel(path=here::here("data/test_drone.xlsx"),
+                 sheet = "COBERTURA") %>% 
+  mutate(cov.campo = COB_TOTAL_M2*100, 
+         cov.drone1 = AREA_VEG_m2*100, 
+         cov.drone2 = COBERTURA*100)
+
+fito <- read_excel(path=here::here("data/test_drone.xlsx"),
+                 sheet = "FITOVOLUMEN")
+
+diversidad <- read_excel(path=here::here("data/test_drone.xlsx"),
+                 sheet = "SHANNON") %>% mutate(shannon = abs(I_SHANNON))
+
+richness <- read_excel(path=here::here("data/riqueza_19_05_21.xlsx")) %>% 
+  rename(QUADRAT = GEO_QUADRAT.NOMBRE) %>% 
+  dplyr::select(QUADRAT,rich = RIQUEZA, rich_cor = RIQUEZA_COR)
+
+
+slope <- read_csv(here::here("data/slopes_quadrat.csv")) %>% 
+  rename(QUADRAT = NOMBRE, slope = Slope)
+
+df <- cob.raw %>% inner_join(diversidad) %>% 
+    mutate(coverclass = 
+           case_when(
+             RANGO_INFOCA == 1 ~ "Matorral claro (<25%)",
+             RANGO_INFOCA == 2 ~ "Matorral medio (25-50%)",
+             RANGO_INFOCA == 3 ~ "Espartal denso (>75%)",
+             RANGO_INFOCA == 4 ~ "Aulagar denso (>75%)"
+           )) %>% 
+  dplyr::select(QUADRAT, RANGO_INFOCA, coverclass, 
+                cov.campo, cov.drone1, cov.drone2, shannon) %>% 
+  inner_join(richness) %>% 
+  inner_join(fito) %>% 
+  inner_join(slope)
+
+```
+
+# Plant coverage 
+
+- Compare Drone vs Ground field measurement
+
+## Which method of the plant coverage estimation by drones should be used? 
+
+- We use two methods of drone measurement (TODO: Document)
+
+- First, we compare the correlation between the coverage measurement derived from each drone approach (*drone*), and the ground field measurement (*campo*). 
+
+```{r}
+g1 <- ggscatterstats(df,
+               title = "Método 1",
+               x="cov.campo", y = "cov.drone1", 
+               marginal = FALSE, 
+               ggplot.component = 
+                 list(geom_abline(slope = 1))) 
+```
+
+
+```{r}
+g2 <- ggscatterstats(df,
+               title = "Método 2",
+               x="cov.campo", y = "cov.drone2", 
+               marginal = FALSE, 
+               ggplot.component = 
+                 list(geom_abline(slope = 1))) 
+```
+
+```{r coverage-metodos, fig.cap="Comparison of the correlation between drone-field ground coverage measurement using two different drone-coverage approaches."}
+g1 + g2
+```
+
+- Correlations between drone vs. campo measurement yielded high and significant pearson values ($R^2=$ 0.91, p-values < 0.001 in both cases). 
+- The method 1 (cov.drone1) show underestimate values of the perfect adjust, *i.e.* the estimation of coverage by drone is lower (for most of the measurements) than the ground-field coverage estimation (Figure \@ref(fig:coverage-metodos)). This uderestimation occurs along the all interval of coverage values. 
+- On the other hand, the method 2, show closer values to the perfect line, overall at lower coverage values (up to 30 %). A slight overstimate is observed for values greather than 50 % (Figure \@ref(fig:coverage-metodos)). 
+
+- Conclusion: **We selected the method 2 (TODO document)**  
+
+## Explore correlations conditionally to vegetation cover (RANGO_INFOCA). 
+
+There are four categories of plant coverage (coverage class):
+
+- Matorral claro (<25%) (RANGO_INFOCA = 1)
+- Matorral medio (25-50%) (RANGO_INFOCA = 2)
+- Espartal denso (>75%) (RANGO_INFOCA = 3)
+- Aulagar denso (>75%) (RANGO_INFOCA = 4)
+
+We explore the correlation bewteen drone-field measurement for each of the coverage class. We use the RMSE (*Root Mean Squared Error*) to explore the accuracy of the correlations for each coverage class. The RMSE is a measure of the accuracy, and here it is used to compare the errors of the correlation for each of the coverage class. RMSE is scale-dependent, but we don't have this problem in our models (all are in the same sclaes, *i.e.* percentage). Lower values indicates better fit. 
+
+
+```{r}
+df.rmse2 <- df %>% group_by(coverclass) %>% 
+  summarise(rmse = round(
+    Metrics::rmse(cov.drone2, cov.campo),4))
+```
+
+
+```{r, echo=FALSE}
+# https://stackoverflow.com/questions/17022553/adding-r2-on-graph-with-facets
+lm_eqn2 = function(df){
+  m = lm(cov.drone2 ~ cov.campo, df);
+  eq <- substitute(r2, 
+                   list(r2 = format(summary(m)$r.squared, digits = 3)))
+  as.character(as.expression(eq));                 
+}
+
+eqns2 <- by(df, df$coverclass, lm_eqn2)
+df.label_2 <- data.frame(eq = unclass(eqns2), coverclass = names(eqns2))
+df.label_2$lab = paste(df.label_2$coverclass, "R2 =", df.label_2$eq, sep=" ")
+
+r2_labeller2 <- function(variable,value){
+  return(df.label_2$lab)
+}
+
+```
+
+```{r}
+pr2 <- df %>% 
+  ggplot(aes(x=cov.campo, y = cov.drone2, color=as.factor(coverclass)))  + 
+  # geom_point() + 
+  # geom_point(aes(size=shannon), alpha=.5) + 
+  # geom_point_interactive(aes(size=shannon, tooltip = QUADRAT, id=QUADRAT)) + 
+  geom_abline(slope=1) +
+  facet_wrap(~coverclass, labeller = r2_labeller2) + 
+  theme_bw() + 
+  xlab("Campo") + 
+  ylab("Drone (cov.drone2)") + 
+  xlim(0,100) + ylim(0,100) + 
+  theme(
+    legend.position = "none", 
+    panel.grid = element_blank(), 
+    strip.background = element_rect(fill="white")
+  ) + ggtitle("Método 2") +
+    geom_text(data = df.rmse2, 
+            aes(x =20, y= 75, label = paste0("RMSE = \n ", rmse)))
+  
+```
+
+```{r cov-classes, fig.cap = "Correlation between drone *vs.* field plant coverage measurement. Each panel show the correlation by coverage classes."}
+pr2 + geom_point()
+```
+
+- We can see in the Figure \@ref(fig:cov-classes), that the lower RMSE values are yielded by the coverage classes "Matorral claro (<25%)" and "Espartal denso (>75%)" with 7.29 and 7.62 % of the error respectively. 
+
+# Correlation *vs* Other variables
+
+Is there any relationship between correlation and other variables?. We could be interested to explore how other variables could influence the drone-field correlation, *e.g.* the richness or the slope. Several approaches can be used (exploratory analysis, residuals, etc.) 
+
+- Compute residuals and absolute residuals
+```{r, echo = TRUE}
+m <- lm(cov.drone2 ~ cov.campo, data=df)
+df <- df %>% modelr::add_residuals(m) %>% 
+  mutate(resid.abs = abs(resid))
+```
+
+## Shannon diversity 
+We explore if the Shannon diversity of each plot does influence the correlation between drone-field measurement. Two approaches were carried out: 
+- Is there any relation of the drone-field residuals and the Shannon diversity. For instance, if higher residual values (absolute values) will correspond with higher shannon diversity values, then we could state that the higher the shannon diversity the lower the accuracy of the correlation between drone-field measurment. 
+
+```{r resid-shannon, fig.cap="Relation between the correlation residuals (drone-field correlation) and the Shannon diversity index (H'). Residulas are shown in absolute values.", fig.height=4, fig.width=4}
+ggpubr::ggscatter(df, x = "shannon", y = "resid.abs", 
+                  add = "reg.line", 
+                  add.params = list(color = "blue", fill = "lightgray"),
+                  conf.int = TRUE, cor.coef = TRUE, 
+   cor.coeff.args = list(method = "pearson", label.x = 1, label.sep = "\n")
+   )
+```
+
+As we can see in Figure \@ref(fig:resid-shannon), there in no significant pattern for the relation of Shannon index and residuals, so the correlation between drone and field coverage seems not to be influenced by the Shannon diversity. However, we observed that the plots with higher Shannon diversity values are those with coverage values below 25 % (see Figure \@ref(fig:correla-shannon))
+
+```{r correla-shannon, fig.cap="Correlation between drone *vs.* field plant coverage measurement. Size and colour points indicates Shannon diversity values", fig.height=4, fig.width=4}
+p.shan <- df %>% 
+  ggplot(aes(x=cov.campo, y = cov.drone2)) + 
+  geom_point_interactive(aes(
+    size=shannon, colour = shannon,
+    tooltip = QUADRAT, id=QUADRAT),
+    alpha = .4) + 
+  geom_abline(slope=1) +
+  theme_bw() + 
+  theme(legend.position = "bottom") + 
+  ggtitle("Dron vs. Campo | Shannon") +
+  scale_colour_gradient(low="#fee8c8", high = "red")
+
+girafe(ggobj = p.shan)
+```
+
+In this sense, we also could be interested in the relationship between each of the coverage measurement (drone or field-measurement) and the Shannon diversity. For this purpose, we fitted a Non-Linear Squares curve for each of the measurement. The curve takes the form: 
+$$Shannon = a\times\exp^{-b \times Coverage}$$ 
+
+```{r}
+df.nls <- df %>% 
+  dplyr::select(cov.campo, cov.drone2, 
+                     shannon,QUADRAT) %>% 
+  pivot_longer(cov.campo:cov.drone2) %>% 
+  rename(variable = name)
+
+
+fitted.nls <- df.nls %>% 
+  nest(-variable) %>% 
+  mutate(
+    fit = purrr::map(data, ~ nls(shannon ~ a * exp(-b * value), 
+                                 start = list(a=3, b=.01),
+                                 data = .)),
+    tidied = map(fit, broom::tidy),
+    r_square = map2_dbl(fit, data, ~ modelr::rsquare(.x, .y)),
+    augmented = map(fit, broom::augment)
+  )
+
+nls.r2 <- fitted.nls %>% 
+  unnest(r_square) %>% 
+  dplyr::select(r_square, variable) %>% 
+  mutate(value = c(75,75), 
+         shannon = c(2,1.8))
+
+```
+
+As, we can see in the Figure \@ref(fig:nls-shannon), there is a decay relationships between Shannon diversity values and the coverage estimated by drone ($R_{Nagelk.}^2 =$ `r round(nls.r2 %>% filter(variable == "cov.drone2") %>% pull(r_square), 3)`), or by field ($R_{Nagelk.}^2 =$ `r round(nls.r2 %>% filter(variable == "cov.campo") %>% pull(r_square), 3)`). 
+
+```{r, echo=FALSE}
+# http://cran.nexr.com/web/packages/ggpmisc/vignettes/user-guide-1.html
+# https://stackoverflow.com/questions/38686029/showing-equation-of-nls-model-with-ggpmisc
+# https://cran.r-project.org/web/packages/ggpmisc/vignettes/model-based-annotations.html
+```
+
+```{r nls-shannon, fig.cap="Non-linear relation between Shannon index and drone- (*blue*) and field- (*pink*) plant coverage", fig.height=4, fig.width=6}
+formula <- y~ a *exp(-b*x) 
+
+ggplot(df.nls, aes(y=shannon, x=value, color=variable)) + 
+  geom_point() + 
+  geom_smooth(method="nls",
+              se = FALSE,
+              formula = formula,
+              method.args = list(start =list(a=2,b=.01))) + 
+  stat_fit_tidy(method = "nls", 
+                method.args = list(formula = formula, start =list(a=2,b=.01)),
+                label.x = "right",
+                label.y = "top",
+                aes(label = 
+                      paste("Shannon~`=`~", signif(stat(a_estimate), digits = 3),
+"~exp(-", signif(stat(b_estimate), digits = 3),"~cov.", ")", sep = "")),
+                parse = TRUE) + 
+  theme_bw() + xlab("Coverage") + 
+  theme(panel.grid = element_blank()) + 
+  geom_text(data = nls.r2, 
+            aes(colour = variable, label=paste0("Nagelk. ~R^2~`=`~", round(r_square,3))), parse = TRUE)
+```
+
+
+```{r}
+fitted.nls %>% 
+  unnest(c(tidied, r_square)) %>% 
+  dplyr::select(variable, term, estimate, r_square) %>% 
+  spread(term, estimate) 
+```
+
+
+## Richness  
+Similarly to Shannon, we explore relationship between Richness and residulas. We find a positive relationships between the residuals and the richness, so the plot showing higher residual values seem to be those with higher richness (Figure \@ref(fig:resid-richness)). However we didn't find relation between richness and coverage (see Figure \@ref(fig:resid-richness)). 
+
+```{r resid-richness, fig.cap="Relation between the correlation residuals (drone-field correlation) and the Richness. Residulas are shown in absolute values.", fig.height=4, fig.width=4}
+ggpubr::ggscatter(df, x = "rich", y = "resid.abs", 
+                  add = "reg.line", 
+                  add.params = list(color = "blue", fill = "lightgray"),
+                  conf.int = TRUE, cor.coef = TRUE, 
+   cor.coeff.args = list(method = "pearson", label.x = 1, label.sep = "\n")
+   )
+```
+
+
+```{r richness-coverage, fig.cap="Relation between Richness and drone- (*blue*) and field- (*pink*) plant coverage.",fig.height=4, fig.width=4}
+
+df.nls.riq <- df %>% 
+  dplyr::select(cov.campo, cov.drone2, 
+                     rich,QUADRAT) %>% 
+  pivot_longer(cov.campo:cov.drone2) %>% 
+  rename(variable = name)
+
+ggpubr::ggscatter(df.nls.riq, x = "value", y = "rich", 
+                  color = "variable",
+                  add = "reg.line", 
+                  # palette = "jco",
+                  conf.int = TRUE) + 
+   stat_cor(aes(color = variable), label.x = 50)  
+```
+
+
+```{r correla-richness, fig.height=4, fig.width=4, fig.cap="Correlation between drone *vs.* field plant coverage measurement. Size and colour points indicates Richness values"}
+
+p.rich <- df %>% 
+  ggplot(aes(x=cov.campo, y = cov.drone2)) + 
+  geom_point_interactive(aes(
+    size=rich, colour = rich, tooltip = QUADRAT, id=QUADRAT),
+    alpha = .4) +  
+  geom_abline(slope=1) +
+  theme_bw() + 
+  theme(legend.position = "bottom") + 
+    scale_colour_gradient(low="#fee8c8", high = "red") + 
+  ggtitle("Dron vs. Campo | Richness")
+
+girafe(ggobj = p.rich)
+```
+
+
+## Slope
+
+```{r}
+lm.slope <- lm(resid.abs~slope, df)
+```
+
+We find no significant relationships between the residuals (absolute values) and the slope ($R^2$ = `r round(glance(lm.slope)$r.squared, 4)`, p-value =  `r round(glance(lm.slope)$p.value,3)`; Figure \@ref(fig:resid-slope)); and there are not also relationship of slope and plant coverages (see Figure \@ref(fig:slope-coverage)). 
+
+
+```{r resid-slope, fig.cap="Relation between the correlation residuals (drone-field correlation) and the Slope, Residulas are shown in absolute values.", fig.height=4, fig.width=4}
+
+ggpubr::ggscatter(df, x = "slope", y = "resid.abs", 
+                  add = "reg.line",
+                  add.params = list(color = "blue", fill = "lightgray"),
+                  conf.int = TRUE, cor.coef = TRUE, 
+   cor.coeff.args = list(method = "pearson", label.x = 1, label.sep = "\n")
+   )
+```
+
+```{r slope-coverage, fig.cap="Relation between Slope and drone- (*blue*) and field- (*pink*) plant coverage", fig.height=4, fig.width=4}
+df.nls.slope <- df %>% 
+  dplyr::select(cov.campo, cov.drone2, 
+                     slope,QUADRAT) %>% 
+  pivot_longer(cov.campo:cov.drone2) %>% 
+  rename(variable = name)
+
+ggpubr::ggscatter(df.nls.slope, x = "value", y = "slope", 
+                  color = "variable",
+                  add = "reg.line", 
+                  # palette = "jco",
+                  conf.int = TRUE) + 
+   stat_cor(aes(color = variable), label.x = 30) 
+```
+
+
+```{r, eval=FALSE}
+# - Include the shannon diversity as circle size 
+pr2 + geom_point(aes(size=shannon), alpha=.5)
+```
+
+```{r, eval=FALSE, echo=FALSE}
+df.rmse1 <- df %>% group_by(coverclass) %>% 
+  summarise(rmse = round(
+    Metrics::rmse(cov.drone1, cov.campo),4))
+
+# https://stackoverflow.com/questions/17022553/adding-r2-on-graph-with-facets
+lm_eqn1 = function(df){
+  m = lm(cov.drone1 ~ cov.campo, df);
+  eq <- substitute(r2, 
+                   list(r2 = format(summary(m)$r.squared, digits = 3)))
+  as.character(as.expression(eq));                 
+}
+
+eqns1 <- by(df, df$coverclass, lm_eqn1)
+df.label_1 <- data.frame(eq = unclass(eqns1), coverclass = names(eqns1))
+df.label_1$lab = paste(df.label_1$coverclass, "R2 =", df.label_1$eq, sep=" ")
+
+r2_labeller1 <- function(variable,value){
+  return(df.label_1$lab)
+}
+
+
+pr1 <- df %>% 
+  ggplot(aes(x=cov.campo, y = cov.drone1, color=as.factor(coverclass))) +
+  geom_point_interactive(aes(tooltip = QUADRAT, id=QUADRAT)) + 
+  geom_abline(slope=1) +
+  facet_wrap(~coverclass, labeller = r2_labeller1) + 
+  theme_bw() + 
+  xlab("Campo") + 
+  ylab("Drone (cov.drone1)") + 
+  geom_smooth(method = "lm") +
+  theme(
+    legend.position = "none", 
+    panel.grid = element_blank(), 
+    strip.background = element_rect(fill="white")
+  ) + ggtitle("Método 1") +
+  geom_text(data = df.rmse1, 
+            aes(x =20, y= 75, label = paste0("RMSE = \n ", rmse)))
+  
+```
+
+```{r, eval=FALSE, echo=FALSE}
+# pr1 + pr2
+girafe(ggobj = plot_grid(pr1, pr2),
+                options = list(
+    opts_sizing(width = .7),
+    opts_zoom(max = 5))
+  )
+```
+
+```{r, eval=FALSE}
+riq_drone <- lm(shannon ~ cov.drone2, data=df)
+riq_campo <- lm(shannon ~ cov.campo, data=df)
+
+
+library(sjPlot)
+formula_lm <- y~x
+tab_model(riq_campo, riq_drone)
+```
+
+```{r, eval=FALSE}
+ggplot(df.nls, aes(y=shannon, x=value, color=variable)) + 
+  geom_point() +
+  geom_smooth(method = "lm", formula = formula_lm) +
+  stat_poly_eq(formula = formula_lm, 
+               label.x = "right",
+                label.y = "top",
+               parse = TRUE)
+```
+
+
+
+
+
+
+
+
+
+# Relation with composition 
+We also want to explore if the species composition affects to the correlation bewteen coverages. For instance, are the plots with dominance of certain species showing higher values of correlation residuals? or is the correlation bewteen coverages (drone vs. field) worse at plots with a given species composition? 
+
+For this purpose our approach were: 
+
+- Generate an ordination plot of the field plots according their species  composition. We used non-Metric Multidimensional Scaling method (NMDS) with three axis. 
+
+- Then we fitted surface responses of our variable of interest (absolute residuals)
+
+```{r}
+sp.comp_raw <- read_excel(path=here::here("data/cob_sp.xlsx")) %>% 
+  rename(fecha= FECHA_MUESTREOS, 
+         QUADRAT = GEO_QUADRAT.NOMBRE, 
+         sp = NOMBRE_CIEN,
+         cob_porc = COBERTURA_porc) %>% 
+  dplyr::select(QUADRAT, sp, cob_porc, fecha) 
+
+sp.comp <- sp.comp_raw %>% 
+  dplyr::filter(fecha == as.Date("2021-05-19")) %>% 
+  mutate(codesp = fuzzySim::spCodes(stringr::str_remove(sp, "subsp. "), nchar.gen = 3, nchar.sp = 3, nchar.ssp = 3))
+
+sp.mat <- sp.comp %>% 
+  dplyr::select(-fecha, -sp) %>% 
+  pivot_wider(values_from = cob_porc, names_from = codesp, values_fn = {sum}, values_fill = 0)
+
+dfnmds <- df %>% dplyr::select(QUADRAT, resid, resid.abs, rich, slope) %>% 
+  inner_join(sp.mat, by="QUADRAT") %>%
+  mutate(
+      zona =
+      case_when(
+        str_detect(QUADRAT, "NP") ~ "QOt_NP",
+        str_detect(QUADRAT, "PR") ~ "QPr_P",
+        TRUE ~ "QOt_P"
+      )) %>% 
+  relocate(zona)
+```
+
+## NMDS Results 
+- Compute NMDS 
+```{r, message=FALSE, warning=FALSE}
+library(vegan)
+
+set.seed(2)
+nmds3 <- dfnmds %>% 
+  dplyr::select(-Des, -zona, -resid, -rich, -slope) %>% # parece haber un problema con una columna. Detectado con colSums () 
+  column_to_rownames("QUADRAT") %>% 
+  metaMDS(., distance = "bray", k=3, try = 30)
+```
+
+```{r stressplot, fig.cap="NMDS stressplot", fig.height=4, fig.width=4}
+stressplot(nmds3)
+```
+
+```{r, echo=TRUE}
+## Vectores
+set.seed(123)
+ef <- envfit(nmds3, dfnmds$resid.abs, choices=1:3, perm = 1000)
+ef 
+
+# Surface responses 
+or <- ordisurf(nmds3, dfnmds$resid.abs, add=F)
+s_or <- summary(or)
+
+# Estadístico
+s_or$s.table[,"F"]
+
+# r2 ajustada
+s_or$r.sq
+
+# p-value de la superficie ajustada
+s_or$s.table[,"p-value"]
+
+# Devianza explicada
+s_or$dev.expl
+```
+
+We observed an acceptable ordination plot (stress valor < 0.2) (\@ref(fig:stressplot)). The surface response of the residuals over this ordination plot was poor and not significant ($R^2$ = `r round(s_or$r.sq, 2)`, p.value = `r round(s_or$s.table[,"p-value"],4)`) (see Figure \@ref(fig:surfaces)) 
+
+
+```{r surfaces, fig.cap="Ordination plot of the species composition (label = species; red points = sites) and surface response of the residuals (absolute values)", fig.height=6, fig.width=6}
+ordiplot(nmds3, type = "n")
+points(nmds3, display = "sites", col="gray", pch=19, cex=.5)
+text(nmds3, display = "sp", cex=.6)
+ordisurf(nmds3,dfnmds$resid.abs,main="",col="blue", add = TRUE, labcex = .8)
+legend(x='topright', legend=substitute(R^2==r2, list(r2=paste('Surface ',round(summary(or)$r.sq,3), sep=''))), box.col=NA, bty='n', cex=1)
+```
+
+
+
+
+```{r, eval=FALSE}
+# Tabla de vectores 
+s <- as.data.frame(scores(ef, "vectors")) 
+
+# Crea df con puntuaciones NMDS 
+nmdsBIO <- data.frame(nmds3$points, 
+                      grupo=dfnmds$zona)
+names(nmdsBIO)[1:3] <- c("NMDS1", "NMDS2", "NMDS3")
+
+ggplot(nmdsBIO, aes(x=NMDS1, y=NMDS2, color = grupo)) + 
+  geom_point(size=2.5, alpha = 0.75) +
+  stat_ellipse(aes(group=grupo), type="norm", level = 0.9) +
+  theme(axis.title = element_text(size = 10, face = "bold", colour = "grey30"), 
+      panel.background = element_blank(), 
+      panel.border = element_rect(fill = NA, colour = "grey30"), 
+      legend.key = element_blank(), 
+      legend.title = element_text(size = 10, face = "bold", colour = "grey30"), 
+      legend.text = element_text(size = 9, colour = "grey30")) +
+  geom_segment(data = s, 
+               aes(x=0, y=0, xend=NMDS1, yend=NMDS2), 
+               colour = "black", size = .8, arrow = arrow(length = unit(0.3,"cm"))) 
+
+```
+
+```{r, eval=FALSE}
+plot(nmds3, type='n', ask=TRUE, axes=FALSE, 
+       xlab='', ylab='', cex.main=1.2,
+       xlim=c(min(nmds3$points[,1]), max(nmds3$points[,1])),
+       ylim=c(min(nmds3$points[,2]), max(nmds3$points[,2])))
+points(nmds3$points[,1], nmds3$points[,2],
+       #  col = as.factor(dfnmds$zona),
+       col = "black", 
+       cex = 1, pch=19)
+box()
+or <- ordisurf(nmds3, dfnmds$resid.abs, add = T, col="gray", labcex = .8)
+legend(x='topright', legend=substitute(R^2==r2, list(r2=paste('Surface ',round(summary(or)$r.sq,3), sep=''))), box.col=NA, bty='n', cex=1)
+ef <- envfit(nmds3, dfnmds$resid.abs, permu = 1000)
+  rownames(ef$vectors$arrows) <- "" 
+  # rownames(ef$vectors$arrows) <- as.character(variables.surf[i,"code_variables"])
+  plot(ef, lwd = 1.5, col = "black")
+```
+
+
+
+
+
+
+
+
+
+
+```{r, eval=FALSE, echo=FALSE}
+p1 <- df %>% 
+  ggplot(aes(x=cov.campo, y = cov.drone1)) + 
+  geom_point_interactive(aes(
+    size=shannon, tooltip = QUADRAT, id=QUADRAT),
+    alpha = .4) + 
+  geom_abline(slope=1) +
+  theme_bw() + 
+  theme(legend.position = "bottom") + ggtitle("Método 1")
+
+
+p2 <- df %>% 
+  ggplot(aes(x=cov.campo, y = cov.drone2)) + 
+  geom_point_interactive(aes(
+    size=shannon, tooltip = QUADRAT, id=QUADRAT),
+    alpha = .4) + 
+  geom_abline(slope=1) +
+  theme_bw() + 
+  theme(legend.position = "bottom") + ggtitle("Método 2")
+
+
+# p1 + p2
+girafe(ggobj = plot_grid(p1, p2),
+         options = list(
+    opts_sizing(width = .7),
+    opts_zoom(max = 5))
+  )
+```
+
+
+
+### Notas 
+
+- Aplicar análisis de clasificación ($\kappa$ coefficient). Ver un ejemplo en @Cunliffeetal2016UltrafineGrain. 
+
+- Revisar trabajos de @Cunliffeetal2016UltrafineGrain, @Abdullah2021 y similares. 
+
+# References
+
+
+
+
