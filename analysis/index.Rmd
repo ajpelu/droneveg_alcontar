@@ -10,4 +10,4 @@ editor_options:
 
 # Analysis of vegetation paremeters derived from drone imagery. 
 
-- [Comparison of Vegetation Cover](analysis/compara_drone_campo.html)
+- [Comparison of Vegetation Cover](compara_drone_campo.html)
