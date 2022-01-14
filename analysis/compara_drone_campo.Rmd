@@ -190,7 +190,7 @@ r2_labeller2 <- function(variable,value){
 
 ```
 
-```{r}
+```{r, dev=c("png", "jpeg")}
 pr2 <- df %>% 
   ggplot(aes(x=cov.campo, y = cov.drone2, color=as.factor(coverclass)))  + 
   # geom_point() + 
@@ -213,7 +213,7 @@ pr2 <- df %>%
 ```
 
 ```{r cov-classes, fig.cap = "Correlation between drone *vs.* field plant coverage measurement. Each panel show the correlation by coverage classes."}
-pr2 + geom_point()
+pr2 + geom_point(size=3)
 ```
 
 - We can see in the Figure \@ref(fig:cov-classes), that the lower RMSE values are yielded by the coverage classes "Matorral claro (<25%)" and "Espartal denso (>75%)" with 7.29 and 7.62 % of the error respectively. 
@@ -231,6 +231,7 @@ df <- df %>% modelr::add_residuals(m) %>%
 
 ## Shannon diversity 
 We explore if the Shannon diversity of each plot does influence the correlation between drone-field measurement. Two approaches were carried out: 
+
 - Is there any relation of the drone-field residuals and the Shannon diversity. For instance, if higher residual values (absolute values) will correspond with higher shannon diversity values, then we could state that the higher the shannon diversity the lower the accuracy of the correlation between drone-field measurment. 
 
 ```{r resid-shannon, fig.cap="Relation between the correlation residuals (drone-field correlation) and the Shannon diversity index (H'). Residulas are shown in absolute values.", fig.height=4, fig.width=4}
@@ -663,6 +664,33 @@ girafe(ggobj = plot_grid(p1, p2),
     opts_sizing(width = .7),
     opts_zoom(max = 5))
   )
+```
+
+### Another plots
+```{r general-correla, dev=c("png","jpeg")}
+
+df.rmse_global <- df %>% 
+  summarise(rmse = round(
+    Metrics::rmse(cov.drone2, cov.campo),4),
+    min = min(cov.campo), 
+    max = max(cov.campo),
+    rmsen.minmax = rmse / (max(cov.campo) - min(cov.campo))*100)
+
+
+df %>% 
+  ggplot(aes(x=cov.campo, y = cov.drone2)) + 
+  geom_point(size=3) + 
+  geom_abline(slope=1) +
+  xlab("Campo") +
+  ylab("Drone") + 
+  theme_bw() + 
+  theme(legend.position = "bottom") + 
+  ggtitle("Cobertura vegetal (%): Dron vs. Campo") +
+  annotate("text", x= 20, y = 90, 
+           label = paste0("R^2 == ", lm_eqn2(df)), parse = TRUE) +
+  annotate("text", x= 20, y = 80, 
+           label = paste0("RMSE = ", round(df.rmse_global$rmse, 2))) 
+  
 ```
 
 
