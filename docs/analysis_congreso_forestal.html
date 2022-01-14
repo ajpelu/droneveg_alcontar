@@ -1,0 +1,982 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+
+<meta name="author" content="ajpelu" />
+
+<meta name="date" content="2022-01-13" />
+
+<title>analysis_congreso_forestal</title>
+
+<script src="site_libs/header-attrs-2.8/header-attrs.js"></script>
+<script src="site_libs/jquery-1.11.3/jquery.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link href="site_libs/bootstrap-3.3.5/css/cosmo.min.css" rel="stylesheet" />
+<script src="site_libs/bootstrap-3.3.5/js/bootstrap.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/html5shiv.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/respond.min.js"></script>
+<style>h1 {font-size: 34px;}
+       h1.title {font-size: 38px;}
+       h2 {font-size: 30px;}
+       h3 {font-size: 24px;}
+       h4 {font-size: 18px;}
+       h5 {font-size: 16px;}
+       h6 {font-size: 12px;}
+       code {color: inherit; background-color: rgba(0, 0, 0, 0.04);}
+       pre:not([class]) { background-color: white }</style>
+<script src="site_libs/jqueryui-1.11.4/jquery-ui.min.js"></script>
+<link href="site_libs/tocify-1.9.1/jquery.tocify.css" rel="stylesheet" />
+<script src="site_libs/tocify-1.9.1/jquery.tocify.js"></script>
+<script src="site_libs/navigation-1.1/tabsets.js"></script>
+<link href="site_libs/highlightjs-9.12.0/textmate.css" rel="stylesheet" />
+<script src="site_libs/highlightjs-9.12.0/highlight.js"></script>
+<script src="site_libs/kePrint-0.0.1/kePrint.js"></script>
+<link href="site_libs/lightable-0.0.1/lightable.css" rel="stylesheet" />
+<link href="site_libs/font-awesome-5.1.0/css/all.css" rel="stylesheet" />
+<link href="site_libs/font-awesome-5.1.0/css/v4-shims.css" rel="stylesheet" />
+
+<link rel="icon" href="https://github.com/workflowr/workflowr-assets/raw/main/img/reproducible.png">
+<!-- Add a small amount of space between sections. -->
+<style type="text/css">
+div.section {
+  padding-top: 12px;
+}
+</style>
+
+
+
+<style type="text/css">
+  code{white-space: pre-wrap;}
+  span.smallcaps{font-variant: small-caps;}
+  span.underline{text-decoration: underline;}
+  div.column{display: inline-block; vertical-align: top; width: 50%;}
+  div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+  ul.task-list{list-style: none;}
+    </style>
+
+<style type="text/css">code{white-space: pre;}</style>
+<script type="text/javascript">
+if (window.hljs) {
+  hljs.configure({languages: []});
+  hljs.initHighlightingOnLoad();
+  if (document.readyState && document.readyState === "complete") {
+    window.setTimeout(function() { hljs.initHighlighting(); }, 0);
+  }
+}
+</script>
+
+
+
+
+
+
+
+
+<style type = "text/css">
+.main-container {
+  max-width: 940px;
+  margin-left: auto;
+  margin-right: auto;
+}
+img {
+  max-width:100%;
+}
+.tabbed-pane {
+  padding-top: 12px;
+}
+.html-widget {
+  margin-bottom: 20px;
+}
+button.code-folding-btn:focus {
+  outline: none;
+}
+summary {
+  display: list-item;
+}
+pre code {
+  padding: 0;
+}
+</style>
+
+
+<style type="text/css">
+.dropdown-submenu {
+  position: relative;
+}
+.dropdown-submenu>.dropdown-menu {
+  top: 0;
+  left: 100%;
+  margin-top: -6px;
+  margin-left: -1px;
+  border-radius: 0 6px 6px 6px;
+}
+.dropdown-submenu:hover>.dropdown-menu {
+  display: block;
+}
+.dropdown-submenu>a:after {
+  display: block;
+  content: " ";
+  float: right;
+  width: 0;
+  height: 0;
+  border-color: transparent;
+  border-style: solid;
+  border-width: 5px 0 5px 5px;
+  border-left-color: #cccccc;
+  margin-top: 5px;
+  margin-right: -10px;
+}
+.dropdown-submenu:hover>a:after {
+  border-left-color: #adb5bd;
+}
+.dropdown-submenu.pull-left {
+  float: none;
+}
+.dropdown-submenu.pull-left>.dropdown-menu {
+  left: -100%;
+  margin-left: 10px;
+  border-radius: 6px 0 6px 6px;
+}
+</style>
+
+<script type="text/javascript">
+// manage active state of menu based on current page
+$(document).ready(function () {
+  // active menu anchor
+  href = window.location.pathname
+  href = href.substr(href.lastIndexOf('/') + 1)
+  if (href === "")
+    href = "index.html";
+  var menuAnchor = $('a[href="' + href + '"]');
+
+  // mark it active
+  menuAnchor.tab('show');
+
+  // if it's got a parent navbar menu mark it active as well
+  menuAnchor.closest('li.dropdown').addClass('active');
+
+  // Navbar adjustments
+  var navHeight = $(".navbar").first().height() + 15;
+  var style = document.createElement('style');
+  var pt = "padding-top: " + navHeight + "px; ";
+  var mt = "margin-top: -" + navHeight + "px; ";
+  var css = "";
+  // offset scroll position for anchor links (for fixed navbar)
+  for (var i = 1; i <= 6; i++) {
+    css += ".section h" + i + "{ " + pt + mt + "}\n";
+  }
+  style.innerHTML = "body {" + pt + "padding-bottom: 40px; }\n" + css;
+  document.head.appendChild(style);
+});
+</script>
+
+<!-- tabsets -->
+
+<style type="text/css">
+.tabset-dropdown > .nav-tabs {
+  display: inline-table;
+  max-height: 500px;
+  min-height: 44px;
+  overflow-y: auto;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.tabset-dropdown > .nav-tabs > li.active:before {
+  content: "";
+  font-family: 'Glyphicons Halflings';
+  display: inline-block;
+  padding: 10px;
+  border-right: 1px solid #ddd;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li.active:before {
+  content: "&#xe258;";
+  border: none;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open:before {
+  content: "";
+  font-family: 'Glyphicons Halflings';
+  display: inline-block;
+  padding: 10px;
+  border-right: 1px solid #ddd;
+}
+
+.tabset-dropdown > .nav-tabs > li.active {
+  display: block;
+}
+
+.tabset-dropdown > .nav-tabs > li > a,
+.tabset-dropdown > .nav-tabs > li > a:focus,
+.tabset-dropdown > .nav-tabs > li > a:hover {
+  border: none;
+  display: inline-block;
+  border-radius: 4px;
+  background-color: transparent;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li {
+  display: block;
+  float: none;
+}
+
+.tabset-dropdown > .nav-tabs > li {
+  display: none;
+}
+</style>
+
+<!-- code folding -->
+
+
+
+<style type="text/css">
+
+#TOC {
+  margin: 25px 0px 20px 0px;
+}
+@media (max-width: 768px) {
+#TOC {
+  position: relative;
+  width: 100%;
+}
+}
+
+@media print {
+.toc-content {
+  /* see https://github.com/w3c/csswg-drafts/issues/4434 */
+  float: right;
+}
+}
+
+.toc-content {
+  padding-left: 30px;
+  padding-right: 40px;
+}
+
+div.main-container {
+  max-width: 1200px;
+}
+
+div.tocify {
+  width: 20%;
+  max-width: 260px;
+  max-height: 85%;
+}
+
+@media (min-width: 768px) and (max-width: 991px) {
+  div.tocify {
+    width: 25%;
+  }
+}
+
+@media (max-width: 767px) {
+  div.tocify {
+    width: 100%;
+    max-width: none;
+  }
+}
+
+.tocify ul, .tocify li {
+  line-height: 20px;
+}
+
+.tocify-subheader .tocify-item {
+  font-size: 0.90em;
+}
+
+.tocify .list-group-item {
+  border-radius: 0px;
+}
+
+
+</style>
+
+
+
+</head>
+
+<body>
+
+
+<div class="container-fluid main-container">
+
+
+<!-- setup 3col/9col grid for toc_float and main content  -->
+<div class="row">
+<div class="col-xs-12 col-sm-4 col-md-3">
+<div id="TOC" class="tocify">
+</div>
+</div>
+
+<div class="toc-content col-xs-12 col-sm-8 col-md-9">
+
+
+
+
+<div class="navbar navbar-default  navbar-fixed-top" role="navigation">
+  <div class="container">
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar">
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+      <a class="navbar-brand" href="index.html">Vegetation parameters estimated by drone (Alcóntar, Sierra Filabres)</a>
+    </div>
+    <div id="navbar" class="navbar-collapse collapse">
+      <ul class="nav navbar-nav">
+        <li>
+  <a href="index.html">Home</a>
+</li>
+<li>
+  <a href="about.html">About</a>
+</li>
+      </ul>
+      <ul class="nav navbar-nav navbar-right">
+        <li>
+  <a href="https://github.com/serpam/dronveg_alcontar">
+    <span class="fas fa-github"></span>
+     
+    Source code
+  </a>
+</li>
+      </ul>
+    </div><!--/.nav-collapse -->
+  </div><!--/.container -->
+</div><!--/.navbar -->
+
+<div id="header">
+
+
+
+<h1 class="title toc-ignore">analysis_congreso_forestal</h1>
+<h4 class="author">ajpelu</h4>
+<h4 class="date">2022-01-13</h4>
+
+</div>
+
+
+<p>
+<button type="button" class="btn btn-default btn-workflowr btn-workflowr-report" data-toggle="collapse" data-target="#workflowr-report">
+<span class="glyphicon glyphicon-list" aria-hidden="true"></span>
+workflowr
+<span class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span>
+</button>
+</p>
+<div id="workflowr-report" class="collapse">
+<ul class="nav nav-tabs">
+<li class="active">
+<a data-toggle="tab" href="#summary">Summary</a>
+</li>
+<li>
+<a data-toggle="tab" href="#checks">
+Checks <span class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span>
+</a>
+</li>
+<li>
+<a data-toggle="tab" href="#versions">Past versions</a>
+</li>
+</ul>
+<div class="tab-content">
+<div id="summary" class="tab-pane fade in active">
+<p>
+<strong>Last updated:</strong> 2022-01-14
+</p>
+<p>
+<strong>Checks:</strong>
+<span class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span>
+7
+<span class="glyphicon glyphicon-exclamation-sign text-danger" aria-hidden="true"></span>
+0
+</p>
+<p>
+<strong>Knit directory:</strong>
+<code>dronveg_alcontar/</code>
+<span class="glyphicon glyphicon-question-sign" aria-hidden="true" title="This is the local directory in which the code in this file was executed.">
+</span>
+</p>
+<p>
+This reproducible <a href="https://rmarkdown.rstudio.com">R Markdown</a>
+analysis was created with <a
+  href="https://github.com/workflowr/workflowr">workflowr</a> (version
+1.7.0). The <em>Checks</em> tab describes the
+reproducibility checks that were applied when the results were created.
+The <em>Past versions</em> tab lists the development history.
+</p>
+<hr>
+</div>
+<div id="checks" class="tab-pane fade">
+<div id="workflowr-checks" class="panel-group">
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongRMarkdownfilestronguptodate">
+<span class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span>
+<strong>R Markdown file:</strong> up-to-date
+</a>
+</p>
+</div>
+<div id="strongRMarkdownfilestronguptodate" class="panel-collapse collapse">
+<div class="panel-body">
+<p>Great! Since the R Markdown file has been committed to the Git repository, you
+know the exact version of the code that produced these results.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongEnvironmentstrongempty">
+<span class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span>
+<strong>Environment:</strong> empty
+</a>
+</p>
+</div>
+<div id="strongEnvironmentstrongempty" class="panel-collapse collapse">
+<div class="panel-body">
+<p>Great job! The global environment was empty. Objects defined in the global
+environment can affect the analysis in your R Markdown file in unknown ways.
+For reproduciblity it’s best to always run the code in an empty environment.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongSeedstrongcodesetseed20210923code">
+<span class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span>
+<strong>Seed:</strong> <code>set.seed(20210923)</code>
+</a>
+</p>
+</div>
+<div id="strongSeedstrongcodesetseed20210923code" class="panel-collapse collapse">
+<div class="panel-body">
+<p>The command <code>set.seed(20210923)</code> was run prior to running the code in the R Markdown file.
+Setting a seed ensures that any results that rely on randomness, e.g.
+subsampling or permutations, are reproducible.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongSessioninformationstrongrecorded">
+<span class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span>
+<strong>Session information:</strong> recorded
+</a>
+</p>
+</div>
+<div id="strongSessioninformationstrongrecorded" class="panel-collapse collapse">
+<div class="panel-body">
+<p>Great job! Recording the operating system, R version, and package versions is
+critical for reproducibility.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongCachestrongnone">
+<span class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span>
+<strong>Cache:</strong> none
+</a>
+</p>
+</div>
+<div id="strongCachestrongnone" class="panel-collapse collapse">
+<div class="panel-body">
+<p>Nice! There were no cached chunks for this analysis, so you can be confident
+that you successfully produced the results during this run.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongFilepathsstrongrelative">
+<span class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span>
+<strong>File paths:</strong> relative
+</a>
+</p>
+</div>
+<div id="strongFilepathsstrongrelative" class="panel-collapse collapse">
+<div class="panel-body">
+<p>Great job! Using relative paths to the files within your workflowr project
+makes it easier to run your code on other machines.</p>
+</div>
+</div>
+</div>
+<div class="panel panel-default">
+<div class="panel-heading">
+<p class="panel-title">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongRepositoryversionstrongahrefhttpsgithubcomajpeludronevegalcontartreea4923cc8a62fb9a814a46a7caf2e3b71563141cctargetblanka4923cca">
+<span class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span>
+<strong>Repository version:</strong> <a href="https://github.com/ajpelu/droneveg_alcontar/tree/a4923cc8a62fb9a814a46a7caf2e3b71563141cc" target="_blank">a4923cc</a>
+</a>
+</p>
+</div>
+<div id="strongRepositoryversionstrongahrefhttpsgithubcomajpeludronevegalcontartreea4923cc8a62fb9a814a46a7caf2e3b71563141cctargetblanka4923cca" class="panel-collapse collapse">
+<div class="panel-body">
+<p>
+Great! You are using Git for version control. Tracking code development and
+connecting the code version to the results is critical for reproducibility.
+</p>
+<p>
+The results in this page were generated with repository version <a href="https://github.com/ajpelu/droneveg_alcontar/tree/a4923cc8a62fb9a814a46a7caf2e3b71563141cc" target="_blank">a4923cc</a>.
+See the <em>Past versions</em> tab to see a history of the changes made to the
+R Markdown and HTML files.
+</p>
+<p>
+Note that you need to be careful to ensure that all relevant files for the
+analysis have been committed to Git prior to generating the results (you can
+use <code>wflow_publish</code> or <code>wflow_git_commit</code>). workflowr only
+checks the R Markdown file, but you know if there are other scripts or data
+files that it depends on. Below is the status of the Git repository when the
+results were generated:
+</p>
+<pre><code>
+Ignored files:
+    Ignored:    .Rhistory
+    Ignored:    .Rproj.user/
+
+Untracked files:
+    Untracked:  analysis/ecology-letters.csl
+    Untracked:  analysis/references.bib
+
+Unstaged changes:
+    Modified:   analysis/compara_drone_campo.Rmd
+
+</code></pre>
+<p>
+Note that any generated files, e.g. HTML, png, CSS, etc., are not included in
+this status report because it is ok for generated content to have uncommitted
+changes.
+</p>
+</div>
+</div>
+</div>
+</div>
+<hr>
+</div>
+<div id="versions" class="tab-pane fade">
+
+<p>
+These are the previous versions of the repository in which changes were made
+to the R Markdown (<code>analysis/analysis_congreso_forestal.Rmd</code>) and HTML (<code>docs/analysis_congreso_forestal.html</code>)
+files. If you’ve configured a remote Git repository (see
+<code>?wflow_git_remote</code>), click on the hyperlinks in the table below to
+view the files as they were in that past version.
+</p>
+<div class="table-responsive">
+<table class="table table-condensed table-hover">
+<thead>
+<tr>
+<th>
+File
+</th>
+<th>
+Version
+</th>
+<th>
+Author
+</th>
+<th>
+Date
+</th>
+<th>
+Message
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+Rmd
+</td>
+<td>
+<a href="https://github.com/ajpelu/droneveg_alcontar/blob/a4923cc8a62fb9a814a46a7caf2e3b71563141cc/analysis/analysis_congreso_forestal.Rmd" target="_blank">a4923cc</a>
+</td>
+<td>
+ajpelu
+</td>
+<td>
+2022-01-14
+</td>
+<td>
+add analysis congreso
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<hr>
+</div>
+</div>
+</div>
+<div id="prepara-datos" class="section level2" number="0.1">
+<h2><span class="header-section-number">0.1</span> Prepara Datos</h2>
+<pre class="r"><code>knitr::opts_chunk$set(echo = FALSE, 
+                      warning = FALSE, 
+                      message = FALSE,
+                      fig.width=10, fig.height=7)</code></pre>
+<ul>
+<li><p>Usamos datos de cobertura vegetal de las parcelas de campo (<strong><em>cob.campo</em></strong>) y datos derivados de dron (<strong><em>cob.dron</em></strong>).</p></li>
+<li><p>De los datos de dron, utilizamos el método de estimación denominado COBERTURA (ver <a href="compara_drone_campo.html">análisis preliminar</a>)</p></li>
+<li><p>Los datos de campo corresponden al muestreo realizado el 19/05/2021.</p></li>
+<li><p>El vuelo del dron se realizó el día 21/05/2021.</p></li>
+<li><p>Los <strong><em>rangos</em></strong> de cobertura se han reclasifiaco de acuerdo a:</p></li>
+</ul>
+<table>
+<thead>
+<tr class="header">
+<th align="left">RANGO_INFOCA</th>
+<th align="left">Nombre</th>
+<th align="left">Cobertura</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left">1</td>
+<td align="left">“Matorral claro”</td>
+<td align="left">“&lt;25%”</td>
+</tr>
+<tr class="even">
+<td align="left">2</td>
+<td align="left">“Matorral medio”</td>
+<td align="left">“25-50%”</td>
+</tr>
+<tr class="odd">
+<td align="left">3</td>
+<td align="left">“Espartal denso”</td>
+<td align="left">“&gt;75%”</td>
+</tr>
+<tr class="even">
+<td align="left">4</td>
+<td align="left">“Aulagar denso”</td>
+<td align="left">“&gt;75%”</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div id="correlación-general" class="section level2" number="0.2">
+<h2><span class="header-section-number">0.2</span> Correlación General</h2>
+<p><img src="figure/analysis_congreso_forestal.Rmd/general-correlation-ggscat-1.png" width="960" style="display: block; margin: auto;" /></p>
+<p><img src="figure/analysis_congreso_forestal.Rmd/general-correlation-1.png" width="960" style="display: block; margin: auto;" /></p>
+</div>
+<div id="correlación-por-rangos" class="section level2" number="0.3">
+<h2><span class="header-section-number">0.3</span> Correlación por Rangos</h2>
+<ul>
+<li><p>Explorar como varía la correlación en los diferentes rangos de cobertura</p></li>
+<li><p>Computar el RMSE, y el RMSE normalizado. El RMSE es dependiente de la escala, por lo que necesitaríamos normalizar para poder comparar entre las clases de cobertura.</p></li>
+</ul>
+<table class=" lightable-material" style="font-family: &quot;Source Sans Pro&quot;, helvetica, sans-serif; margin-left: auto; margin-right: auto;">
+<thead>
+<tr>
+<th style="text-align:left;">
+Rango de cobertura
+</th>
+<th style="text-align:right;">
+RMSE
+</th>
+<th style="text-align:right;">
+min
+</th>
+<th style="text-align:right;">
+max
+</th>
+<th style="text-align:right;">
+norm. RMSE %
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left;">
+Aulagar denso (&gt;75%)
+</td>
+<td style="text-align:right;">
+12.69
+</td>
+<td style="text-align:right;">
+10
+</td>
+<td style="text-align:right;">
+61
+</td>
+<td style="text-align:right;">
+24.89
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Espartal denso (&gt;75%)
+</td>
+<td style="text-align:right;">
+7.63
+</td>
+<td style="text-align:right;">
+9
+</td>
+<td style="text-align:right;">
+87
+</td>
+<td style="text-align:right;">
+9.78
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Matorral claro (&lt;25%)
+</td>
+<td style="text-align:right;">
+7.30
+</td>
+<td style="text-align:right;">
+6
+</td>
+<td style="text-align:right;">
+28
+</td>
+<td style="text-align:right;">
+33.18
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Matorral medio (25-50%)
+</td>
+<td style="text-align:right;">
+10.89
+</td>
+<td style="text-align:right;">
+9
+</td>
+<td style="text-align:right;">
+63
+</td>
+<td style="text-align:right;">
+20.16
+</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>Generamos las ecuaciones para la gráfica</li>
+</ul>
+<p><img src="figure/analysis_congreso_forestal.Rmd/correlation-coverclass-1.png" width="960" style="display: block; margin: auto;" /></p>
+</div>
+<div id="influencia-de-otras-variables-en-la-variación-de-la-correlación" class="section level2" number="0.4">
+<h2><span class="header-section-number">0.4</span> Influencia de otras variables en la Variación de la correlación</h2>
+<p>¿Existe alguna relación entre la correlación y otras variables? Podría interesarnos explorar cómo otras variables podrían influir en la correlación dron-campo, <em>por ejemplo</em> la riqueza o la pendiente. Se pueden utilizar varios enfoques (análisis exploratorio, residuos, etc.). En nuestro caso utilizamos la correlación entre los residuos de la correlación y las diferentes variables.</p>
+<ul>
+<li>Calculamos los residuos y los residuos absolutos</li>
+</ul>
+<pre class="r"><code>m &lt;- lm(cob.dron ~ cob.campo, data=df)
+df &lt;- df %&gt;% modelr::add_residuals(m) %&gt;% 
+  mutate(resid.abs = abs(resid))
+
+
+dfres &lt;- df %&gt;% dplyr::select(coverclass, Diversidad = shannon, Riqueza  = rich, Pendiente = slope, resid, resid.abs) %&gt;% 
+  pivot_longer(cols = c(&quot;Diversidad&quot;, &quot;Riqueza&quot;, &quot;Pendiente&quot;)) %&gt;% 
+  mutate(variable = fct_relevel(name, c(&quot;Diversidad&quot;, &quot;Riqueza&quot;, &quot;Pendiente&quot;)))</code></pre>
+<ul>
+<li>Hacemos gráfico de las tres variables</li>
+</ul>
+<p><img src="figure/analysis_congreso_forestal.Rmd/residuos-variables-1.png" width="960" style="display: block; margin: auto;" /></p>
+<br>
+<p>
+<button type="button" class="btn btn-default btn-workflowr btn-workflowr-sessioninfo" data-toggle="collapse" data-target="#workflowr-sessioninfo" style="display: block;">
+<span class="glyphicon glyphicon-wrench" aria-hidden="true"></span>
+Session information
+</button>
+</p>
+<div id="workflowr-sessioninfo" class="collapse">
+<pre><code>R version 4.0.2 (2020-06-22)
+Platform: x86_64-apple-darwin17.0 (64-bit)
+Running under: macOS Catalina 10.15.3
+
+Matrix products: default
+BLAS:   /Library/Frameworks/R.framework/Versions/4.0/Resources/lib/libRblas.dylib
+LAPACK: /Library/Frameworks/R.framework/Versions/4.0/Resources/lib/libRlapack.dylib
+
+locale:
+[1] en_US.UTF-8/en_US.UTF-8/en_US.UTF-8/C/en_US.UTF-8/en_US.UTF-8
+
+attached base packages:
+[1] stats     graphics  grDevices utils     datasets  methods   base     
+
+other attached packages:
+ [1] modelr_0.1.8      ggpubr_0.4.0      ggtext_0.1.1      kableExtra_1.3.1 
+ [5] Metrics_0.1.4     ggstatsplot_0.7.2 readxl_1.3.1      here_1.0.1       
+ [9] forcats_0.5.1     stringr_1.4.0     dplyr_1.0.6       purrr_0.3.4      
+[13] readr_1.4.0       tidyr_1.1.3       tibble_3.1.2      ggplot2_3.3.5    
+[17] tidyverse_1.3.1   workflowr_1.7.0  
+
+loaded via a namespace (and not attached):
+  [1] pairwiseComparisons_3.1.3 backports_1.2.1          
+  [3] plyr_1.8.6                splines_4.0.2            
+  [5] gmp_0.6-2                 kSamples_1.2-9           
+  [7] ipmisc_5.0.2              TH.data_1.0-10           
+  [9] digest_0.6.27             SuppDists_1.1-9.5        
+ [11] htmltools_0.5.2           fansi_0.4.2              
+ [13] magrittr_2.0.1            memoise_2.0.0            
+ [15] paletteer_1.3.0           openxlsx_4.2.3           
+ [17] sandwich_3.0-0            colorspace_2.0-2         
+ [19] rvest_1.0.0               ggrepel_0.9.1            
+ [21] haven_2.3.1               xfun_0.23                
+ [23] callr_3.7.0               crayon_1.4.1             
+ [25] jsonlite_1.7.2            zeallot_0.1.0            
+ [27] survival_3.2-7            zoo_1.8-8                
+ [29] glue_1.4.2                gtable_0.3.0             
+ [31] emmeans_1.5.4             webshot_0.5.2            
+ [33] MatrixModels_0.4-1        statsExpressions_1.1.0   
+ [35] car_3.0-10                Rmpfr_0.8-2              
+ [37] abind_1.4-5               scales_1.1.1.9000        
+ [39] mvtnorm_1.1-1             DBI_1.1.1                
+ [41] rstatix_0.6.0             PMCMRplus_1.9.0          
+ [43] miniUI_0.1.1.1            Rcpp_1.0.7               
+ [45] viridisLite_0.4.0         xtable_1.8-4             
+ [47] performance_0.8.0         gridtext_0.1.4           
+ [49] foreign_0.8-81            httr_1.4.2               
+ [51] ellipsis_0.3.2            farver_2.1.0             
+ [53] pkgconfig_2.0.3           reshape_0.8.8            
+ [55] multcompView_0.1-8        sass_0.3.1               
+ [57] dbplyr_2.1.1              utf8_1.1.4               
+ [59] labeling_0.4.2            tidyselect_1.1.1         
+ [61] rlang_0.4.12              later_1.1.0.1            
+ [63] ggcorrplot_0.1.3          effectsize_0.4.5         
+ [65] munsell_0.5.0             cellranger_1.1.0         
+ [67] tools_4.0.2               cachem_1.0.4             
+ [69] cli_2.5.0                 generics_0.1.0           
+ [71] broom_0.7.9               evaluate_0.14            
+ [73] fastmap_1.1.0             BWStest_0.2.2            
+ [75] yaml_2.2.1                rematch2_2.1.2           
+ [77] processx_3.5.1            knitr_1.31               
+ [79] fs_1.5.0                  zip_2.1.1                
+ [81] nlme_3.1-152              WRS2_1.1-1               
+ [83] pbapply_1.4-3             mime_0.10                
+ [85] whisker_0.4               ggExtra_0.9              
+ [87] xml2_1.3.2                correlation_0.6.1        
+ [89] compiler_4.0.2            rstudioapi_0.13          
+ [91] curl_4.3                  ggsignif_0.6.0           
+ [93] reprex_2.0.0              bslib_0.2.4              
+ [95] stringi_1.7.4             highr_0.8                
+ [97] ps_1.5.0                  parameters_0.14.0        
+ [99] lattice_0.20-41           Matrix_1.3-2             
+[101] markdown_1.1              vctrs_0.3.8              
+[103] pillar_1.6.1              lifecycle_1.0.1          
+[105] mc2d_0.1-18               jquerylib_0.1.3          
+[107] estimability_1.3          data.table_1.14.0        
+[109] insight_0.14.4            httpuv_1.5.5             
+[111] patchwork_1.1.1           R6_2.5.1                 
+[113] bookdown_0.21.6           promises_1.2.0.1         
+[115] rio_0.5.16                BayesFactor_0.9.12-4.2   
+[117] codetools_0.2-18          MASS_7.3-53              
+[119] gtools_3.8.2              assertthat_0.2.1         
+[121] rprojroot_2.0.2           withr_2.4.1              
+[123] multcomp_1.4-16           mgcv_1.8-33              
+[125] bayestestR_0.9.0          parallel_4.0.2           
+[127] hms_1.0.0                 grid_4.0.2               
+[129] coda_0.19-4               rmarkdown_2.8            
+[131] carData_3.0-4             git2r_0.28.0             
+[133] getPass_0.2-2             shiny_1.6.0              
+[135] lubridate_1.7.10         </code></pre>
+</div>
+</div>
+
+
+<!-- Adjust MathJax settings so that all math formulae are shown using
+TeX fonts only; see
+https://docs.mathjax.org/en/latest/web/configuration.html. This will make
+the presentation more consistent at the cost of the webpage sometimes
+taking slightly longer to load. Note that this only works because the
+footer is added to webpages before the MathJax javascript. -->
+<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    "HTML-CSS": { availableFonts: ["TeX"] }
+  });
+</script>
+
+
+
+
+</div>
+</div>
+
+</div>
+
+<script>
+
+// add bootstrap table styles to pandoc tables
+function bootstrapStylePandocTables() {
+  $('tr.odd').parent('tbody').parent('table').addClass('table table-condensed');
+}
+$(document).ready(function () {
+  bootstrapStylePandocTables();
+});
+
+
+</script>
+
+<!-- tabsets -->
+
+<script>
+$(document).ready(function () {
+  window.buildTabsets("TOC");
+});
+
+$(document).ready(function () {
+  $('.tabset-dropdown > .nav-tabs > li').click(function () {
+    $(this).parent().toggleClass('nav-tabs-open');
+  });
+});
+</script>
+
+<!-- code folding -->
+
+<script>
+$(document).ready(function ()  {
+
+    // move toc-ignore selectors from section div to header
+    $('div.section.toc-ignore')
+        .removeClass('toc-ignore')
+        .children('h1,h2,h3,h4,h5').addClass('toc-ignore');
+
+    // establish options
+    var options = {
+      selectors: "h1,h2,h3",
+      theme: "bootstrap3",
+      context: '.toc-content',
+      hashGenerator: function (text) {
+        return text.replace(/[.\\/?&!#<>]/g, '').replace(/\s/g, '_');
+      },
+      ignoreSelector: ".toc-ignore",
+      scrollTo: 0
+    };
+    options.showAndHide = true;
+    options.smoothScroll = true;
+
+    // tocify
+    var toc = $("#TOC").tocify(options).data("toc-tocify");
+});
+</script>
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>
