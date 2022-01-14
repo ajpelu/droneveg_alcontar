@@ -1,5 +1,5 @@
 ---
-title: "analysis_congreso_forestal"
+title: "Prepare analysis and figures for VIII Spanish Forest Meeting"
 author: "ajpelu"
 date: "2022-01-13"
 output: workflowr::wflow_html
