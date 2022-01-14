@@ -1,0 +1,296 @@
+---
+title: "analysis_congreso_forestal"
+author: "ajpelu"
+date: "2022-01-13"
+output: workflowr::wflow_html
+editor_options:
+  chunk_output_type: console
+---
+
+## Prepara Datos
+
+```{r setup}
+knitr::opts_chunk$set(echo = FALSE, 
+                      warning = FALSE, 
+                      message = FALSE,
+                      fig.width=10, fig.height=7)
+```
+
+```{r pkg}
+library(tidyverse)
+library(here)
+library(readxl)
+library(ggstatsplot)
+library(Metrics)
+library(kableExtra)
+library(ggtext)
+library(ggpubr)
+library(modelr)
+```
+
+- Usamos datos de cobertura vegetal de las parcelas de campo (***cob.campo***) y datos derivados de dron (***cob.dron***). 
+
+- De los datos de dron, utilizamos el método de estimación denominado COBERTURA (ver [análisis preliminar](compara_drone_campo.html))
+
+- Los datos de campo corresponden al muestreo realizado el 19/05/2021.
+
+- El vuelo del dron se realizó el día 21/05/2021. 
+
+- Los ***rangos*** de cobertura se han reclasifiaco de acuerdo a:
+
+| RANGO_INFOCA | Nombre           | Cobertura |
+| :----------- | :--------------- | :-------- |
+| 1            | "Matorral claro" | "<25%"    |
+| 2            | "Matorral medio" | "25-50%"  |
+| 3            | "Espartal denso" | ">75%"    |
+| 4            | "Aulagar denso"  | ">75%"    |
+
+
+```{r}
+cob.raw <- read_excel(path=here::here("data/test_drone.xlsx"),
+                 sheet = "COBERTURA") %>% 
+  mutate(cob.campo = COB_TOTAL_M2*100, 
+         cob.dron = COBERTURA*100)
+
+diversidad <- read_excel(path=here::here("data/test_drone.xlsx"),
+                 sheet = "SHANNON") %>% mutate(shannon = abs(I_SHANNON))
+
+richness <- read_excel(path=here::here("data/riqueza_19_05_21.xlsx")) %>% 
+  rename(QUADRAT = GEO_QUADRAT.NOMBRE) %>% 
+  dplyr::select(QUADRAT, rich = RIQUEZA, rich_cor = RIQUEZA_COR)
+
+slope <- read_csv(here::here("data/slopes_quadrat.csv")) %>% 
+  rename(QUADRAT = NOMBRE, slope = Slope)
+
+df <- cob.raw %>% inner_join(diversidad) %>% 
+    mutate(coverclass = 
+           case_when(
+             RANGO_INFOCA == 1 ~ "Matorral claro (<25%)",
+             RANGO_INFOCA == 2 ~ "Matorral medio (25-50%)",
+             RANGO_INFOCA == 3 ~ "Espartal denso (>75%)",
+             RANGO_INFOCA == 4 ~ "Aulagar denso (>75%)"
+           )) %>% 
+  dplyr::select(QUADRAT, RANGO_INFOCA, coverclass, 
+                cob.campo, cob.dron, shannon) %>% 
+  inner_join(richness) %>% 
+  inner_join(slope)
+```
+
+## Correlación General
+
+```{r general-correlation-ggscat, dev=c("png","jpeg")}
+ggscatterstats(df, 
+               x= "cob.campo", 
+               xlab = expression('Cobertura'['campo']*' (%)'), 
+               y = "cob.dron", 
+               ylab = expression('Cobertura'['dron']*' (%)'), 
+               results.subtitle = TRUE,
+               point.args = list(
+                size = 3, 
+                alpha = 0.4,
+                colour = "blue"
+               ),
+               smooth.line.args = 
+                 list(size = 1, color = "black"),
+               xfill = "gray", yfill = "gray",
+               marginal = TRUE, 
+               ggplot.component = 
+                 list(geom_abline(slope = 1, colour="blue"), 
+                      xlim(0,100)))
+```
+
+```{r rmse-global}
+df.rmse_global <- df %>% 
+  summarise(rmse = round(
+    Metrics::rmse(cob.dron, cob.campo),4),
+    min = min(cob.campo), 
+    max = max(cob.campo),
+    rmsen.minmax = rmse / (max(cob.campo) - min(cob.campo))*100)
+```
+
+```{r}
+# https://stackoverflow.com/questions/17022553/adding-r2-on-graph-with-facets
+lm_eqn = function(df){
+  m = lm(cob.dron ~ cob.campo, df);
+  eq <- substitute(r2,
+                   list(r2 = format(summary(m)$r.squared, digits = 3)))
+  as.character(as.expression(eq));                 
+}
+```
+
+```{r general-correlation, dev=c("png","jpeg")}
+df %>% 
+  ggplot(aes(x=cob.campo, y = cob.dron)) + 
+  geom_point(size=3, alpha=.6, colour="blue") + 
+  geom_abline(slope=1) +
+  xlab(expression('Cobertura'['campo']*' (%)')) + 
+  ylab(expression('Cobertura'['dron']*' (%)')) +
+  xlim(0,100) + ylim(0,100) + 
+  theme_bw() + 
+  theme(legend.position = "bottom") + 
+  ggtitle("Cobertura vegetal (%): Dron vs. Campo") +
+  annotate("text", x= 20, y = 90, 
+           label = paste0("R^2 == ", lm_eqn(df)), 
+           parse = TRUE) +
+  annotate("text", x= 20, y = 80, 
+           label = paste0("RMSE = ", round(df.rmse_global$rmse, 2))) 
+```
+
+## Correlación por Rangos
+
+- Explorar como varía la correlación en los diferentes rangos de  cobertura
+
+- Computar el RMSE, y el RMSE normalizado. El RMSE es dependiente de la escala, por lo que necesitaríamos normalizar para poder comparar entre las clases de cobertura.
+
+```{r}
+df.rmse_groups <- df %>% group_by(coverclass) %>% 
+  summarise(rmse = round(
+    Metrics::rmse(cob.dron, cob.campo),4),
+    min = min(cob.campo), 
+    max = max(cob.campo),
+    rmsen.minmax = rmse / (max(cob.campo) - min(cob.campo))*100)
+
+# see also hydroGOF pkg for RMSE et al. 
+```
+
+```{r}
+df.rmse_groups %>% 
+  kbl(col.names = c("Rango de cobertura",
+                               "RMSE",
+                               "min",
+                               "max",
+                               "norm. RMSE %"),
+                 digits = c(0,2,0,0,2)) %>% 
+  kable_material()
+```
+
+- Generamos las ecuaciones para la gráfica
+
+```{r}
+eqns <- by(df, df$coverclass, lm_eqn)
+df.label <- data.frame(eq = unclass(eqns), coverclass = names(eqns))
+df.label$lab = paste(df.label$coverclass, "R^2 =", df.label$eq, sep=" ")
+
+
+r2_labeller <- function(variable,value){
+  return(df.label$lab)
+}
+```
+
+
+```{r correlation-coverclass, dev=c("png","jpeg")}
+df %>% 
+  ggplot(aes(x=cob.campo, y = cob.dron, color=as.factor(coverclass)))  + 
+  geom_abline(slope=1) + 
+  geom_point(size=3, alpha = .5) + 
+  #  facet_wrap(~coverclass, labeller = r2_labeller) + 
+  facet_wrap(~coverclass, labeller = label_value) + 
+  theme_bw() + 
+  ylab("Dron") + xlab("Campo") + 
+  # xlab(expression('Cobertura'['campo']*' (%)')) + 
+  # ylab(expression('Cobertura'['dron']*' (%)')) +
+  xlim(0,100) + ylim(0,100) + 
+  theme(
+    legend.position = "none", 
+    panel.grid = element_blank(), 
+    strip.background = element_rect(fill="white"), 
+    strip.text = element_text(face = "bold"), 
+    axis.title = element_text(face = "bold")
+  ) + 
+  ggtitle("Cobertura vegetal (%)") +
+  geom_richtext(data = df.rmse_groups, 
+            aes(x = 30, y = 90, 
+                label = paste0(
+                  "RMSE<sub>norm.</sub> = ",
+                  round(rmsen.minmax,2), " %")),
+            fill = NA, label.color = NA)
+
+```
+
+## Influencia de otras variables en la Variación de la correlación
+
+¿Existe alguna relación entre la correlación y otras variables? Podría interesarnos explorar cómo otras variables podrían influir en la correlación dron-campo, *por ejemplo* la riqueza o la pendiente. Se pueden utilizar varios enfoques (análisis exploratorio, residuos, etc.). En nuestro caso utilizamos la correlación entre los residuos de la correlación y las diferentes variables.  
+
+- Calculamos los residuos y los residuos absolutos 
+
+```{r, echo = TRUE}
+m <- lm(cob.dron ~ cob.campo, data=df)
+df <- df %>% modelr::add_residuals(m) %>% 
+  mutate(resid.abs = abs(resid))
+
+
+dfres <- df %>% dplyr::select(coverclass, Diversidad = shannon, Riqueza  = rich, Pendiente = slope, resid, resid.abs) %>% 
+  pivot_longer(cols = c("Diversidad", "Riqueza", "Pendiente")) %>% 
+  mutate(variable = fct_relevel(name, c("Diversidad", "Riqueza", "Pendiente")))
+  
+```
+
+- Hacemos gráfico de las tres variables 
+
+```{r residuos-variables, dev=c("png","jpeg")}
+p <- ggpubr::ggscatter(dfres,
+  x = "value", y = "resid.abs",
+  color = "black",
+  alpha = 0.7,
+  xlab = "", 
+  ylab = expression(paste("|","Residuos","|")),
+  add = "reg.line",
+  add.params = list(color = "blue", fill = "lightgray"),
+  conf.int = TRUE, 
+  facet.by = "variable"
+) + 
+  stat_cor(
+    label.y.npc="top", label.x.npc = "left",
+    aes(label = paste(..rr.label.., ..p.label.., sep = "~`,`~"))
+    )
+
+ggpubr::facet(p,
+  facet.by = "variable", scales = "free_x",
+  panel.labs.background = list(fill = "white")
+)
+```
+
+
+
+```{r, echo=FALSE, eval=FALSE}
+# alternativa
+dfres %>% 
+  ggplot(aes(x=value, y=resid.abs)) + 
+  geom_point() + 
+  facet_wrap(~variable, scales = "free_x") +
+  geom_smooth(method = lm, fill = "lightgray") + 
+  ggpubr::stat_cor(
+    label.y.npc="top", label.x.npc = "left",
+    aes(label = paste(..rr.label.., ..p.label.., sep = "~`,`~"))
+    ) +
+  ggpubr::
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+```{r resid-shannon, fig.cap="Relation between the correlation residuals (drone-field correlation) and the Shannon diversity index (H'). Residulas are shown in absolute values.", fig.height=4, fig.width=4}
+
+p <- ggpubr::ggscatter(df, x = "shannon", y = "resid.abs", 
+                  add = "reg.line", 
+                  add.params = list(color = "blue", fill = "lightgray"),
+                  conf.int = TRUE, cor.coef = TRUE, 
+   cor.coeff.args = list(method = "pearson", label.x = 1, label.sep = "\n")
+   ) 
+
+
+```
