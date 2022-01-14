@@ -11,3 +11,4 @@ editor_options:
 # Analysis of vegetation paremeters derived from drone imagery. 
 
 - [Comparison of Vegetation Cover](compara_drone_campo.html)
+- [Prepare analysis for VIII Spanish Forest Meeting](analysis_congreso_forestal.html)
