@@ -68,10 +68,11 @@ df <- cob.raw %>% inner_join(diversidad) %>%
              RANGO_INFOCA == 1 ~ "Matorral claro (<25%)",
              RANGO_INFOCA == 2 ~ "Matorral medio (25-50%)",
              RANGO_INFOCA == 3 ~ "Espartal denso (>75%)",
-             RANGO_INFOCA == 4 ~ "Aulagar denso (>75%)"
+             RANGO_INFOCA == 4 ~ "Matorral denso (>75%)"
            )) %>% 
   dplyr::select(QUADRAT, RANGO_INFOCA, coverclass, 
                 cob.campo, cob.dron, shannon) %>% 
+  mutate(coverclass = fct_relevel(coverclass, c("Matorral claro (<25%)","Matorral medio (25-50%)","Matorral denso (>75%)","Espartal denso (>75%)"))) %>% 
   inner_join(richness) %>% 
   inner_join(slope)
 ```
