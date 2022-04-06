@@ -214,6 +214,7 @@ g.rangos <- df %>%
                   round(rmsen.minmax,2), " %")),
             fill = NA, label.color = NA)
 
+g.rangos
 ```
 
 ```{r}
@@ -308,6 +309,11 @@ p.riqueza <- df %>%
   # scale_colour_gradient(low="#fee8c8", high = "red") + 
   ggtitle("Dron vs. Campo | Riqueza")
 ```
+
+```{r}
+p.riqueza
+```
+
 
 
 ```{r}
