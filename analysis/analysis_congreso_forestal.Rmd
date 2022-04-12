@@ -26,6 +26,10 @@ library(kableExtra)
 library(ggtext)
 library(ggpubr)
 library(modelr)
+library(rpart)
+library(party)
+library(ggparty)
+library(partykit)
 ```
 
 - Usamos datos de cobertura vegetal de las parcelas de campo (***cob.campo***) y datos derivados de dron (***cob.dron***). 
@@ -323,9 +327,215 @@ ggsave(p.riqueza,
 ```
 
 
+## Comparison dronQ vs Quadrat 
+
+- ¿Es la relación entre dronQ-Quadrat uniforme a lo largo de todos los valores de cobertura o existen grupos dentro de esta correlación? Dicho de otro modo, ¿la correlación entre las dos variables es homogénea a lo largo de todos los valores de cobertura?
+
+- Para ello aplicamos una técnica de partición de la varianza, y hacemos árboles de clasificación. 
+
+### Primer modelo 
+
+```{r}
+ct <- partykit::ctree(cob.dron ~ cob.campo, data=df)
+ct
+sctest(ct) 
+```
+
+Nos indica que existen al menos 5 grupos. 
+
+```{r}
+ggparty(ct) + 
+  geom_edge() +
+  geom_edge_label(colour = "grey", size = 4) +
+  geom_node_plot(gglist = list(
+    geom_point(aes(x = cob.campo,y = cob.dron)),
+    geom_smooth(aes(x=cob.campo, y=cob.dron), method = lm, se = FALSE),
+    geom_abline(slope = 1, colour = "gray"),
+    theme_bw(base_size = 10),
+    xlab(expression('Cobertura'['campo']*' (%)')),
+    ylab(expression('Cobertura'['dron']*' (%)')) 
+    ),
+                scales = "fixed", 
+                shared_axis_labels = TRUE,
+                shared_legend = TRUE,
+                legend_separator = TRUE, 
+                id = "terminal") +
+   geom_node_label(aes(col = splitvar),
+                  line_list = list(aes(label = paste("Node", id)),
+                                   aes(label = splitvar),
+                                   aes(label = scales::pvalue(p.value, accuracy = 0.001, 
+                                                              decimal.mark = ".", 
+                                                              add_p = TRUE))), 
+                                                     
+          line_gpar = list(list(size = 8, col = "black", fontface = "bold"),
+                                   list(size = 8),
+                                   list(size = 8)),
+                  ids = "inner") + 
+  geom_node_label(aes(label = paste0("Node ", id, ", (n= ", nodesize, ")")),
+                  fontface = "bold",
+                  ids = "terminal",
+                  size = 2, 
+                  nudge_y = 0.01) +
+  theme(legend.position = "none")
+
+```
+
+pero, ¿no estaremos sobreparametrizando? 
 
 
+```{r}
+ggplot(df, aes(x=cob.campo, y = cob.dron)) +
+  geom_point() + 
+  geom_abline(yintercept = 1) + 
+  geom_smooth(
+    data = (df %>% filter(cob.campo <=  13)),
+    aes(x=cob.campo, y = cob.dron),
+    method = "lm") + 
+  geom_smooth(
+    data = (df %>% filter(cob.campo > 13 & cob.campo <= 23)),
+    aes(x=cob.campo, y = cob.dron),
+    method = "lm") + 
+  geom_smooth(
+    data = (df %>% filter(cob.campo > 23 & cob.campo <= 36)),
+    aes(x=cob.campo, y = cob.dron),
+    method = "lm") + 
+  geom_smooth(
+    data = (df %>% filter(cob.campo > 36 & cob.campo <= 50)),
+    aes(x=cob.campo, y = cob.dron),
+    method = "lm") +
+  geom_smooth(
+    data = (df %>% filter(cob.campo >50)),
+    aes(x=cob.campo, y = cob.dron),
+    method = "lm")
 
+```
+
+
+#### Exploprar el Overfitting (sobreparametrización)
+
+- Hacer crecer un árbol sobre cierto nivel de complejidad, puede llevarnos a sobreparametrizar el modelo. ¿En que nodo cortamos el árbol? 
+
+- Es preferible tener un modelo más simple que sobreparametrizar el ajuste. Para ello podemos utilizar el Complexity parameter (CP), que controla el tamaño del árbol de decisión. Si el coste de añadir otro nodo (u otra variable) a partir del nodo actual está por encima del valor del cp, entonces el árbol no continúa creciendo. Mas información [aquí](https://statinfer.com/203-3-10-pruning-a-decision-tree-in-r/)
+
+
+```{r}
+set.seed(123)
+ctrpart <- rpart(cob.dron ~ cob.campo, data=df)
+ctrpart
+printcp(ctrpart)
+```
+
+Al explorar este modelo observamos que el error (xerror) no se disminuye sustancialmente a partir del 3 item (nsplit = 2). 
+
+```{r}
+plotcp(ctrpart)
+```
+
+Volvemos a modelar, usando un cp = 0.07. Obtenemos, que no reducimos mucho el error. 
+
+```{r}
+set.seed(123)
+ctrpart2 <- rpart(cob.dron ~ cob.campo, data=df, control = 
+               rpart.control(minsplit = 2, cp = .07))
+ctrpart2
+printcp(ctrpart2)
+plotcp(ctrpart2)
+```
+
+Por tanto expecificamos un complexity parameter de 0.22, y comprobamos 
+```{r}
+set.seed(123)
+ctrpart3 <- rpart(cob.dron ~ cob.campo, data=df, control = 
+               rpart.control(minsplit = 2, cp = .22))
+ctrpart3
+printcp(ctrpart3)
+plotcp(ctrpart3)
+```
+
+En este caso, observamos que el mejor modelo es aquel que usa dos grupos (1 split) 
+
+```{r}
+set.seed(123)
+ct_ok <- partykit::ctree(cob.dron ~ cob.campo, data=df, 
+                          control = 
+                            ctree_control(minsplit= 1,alpha = 0.05, maxdepth = 1))
+plot(ct_ok)
+
+ggparty(ct_ok) + 
+  geom_edge() +
+  geom_edge_label(colour = "grey", size = 4) + 
+  geom_node_plot(gglist = list(
+    geom_point(aes(x = cob.campo,y = cob.dron)),
+    geom_smooth(aes(x=cob.campo, y=cob.dron), method = lm, se = FALSE),
+    geom_abline(slope = 1, colour = "gray"),
+    theme_bw(base_size = 10),
+    xlab(expression('Cobertura'['campo']*' (%)')),
+    ylab(expression('Cobertura'['dron']*' (%)')) 
+    ),
+                scales = "fixed", 
+                shared_axis_labels = TRUE,
+                shared_legend = TRUE,
+                legend_separator = TRUE, 
+                id = "terminal") +
+   geom_node_label(aes(col = splitvar),
+                  line_list = list(aes(label = paste("Node", id)),
+                                   aes(label = splitvar),
+                                   aes(label = scales::pvalue(p.value, accuracy = 0.001, 
+                                                              decimal.mark = ".", 
+                                                              add_p = TRUE))), 
+                                                     
+          line_gpar = list(list(size = 8, col = "black", fontface = "bold"),
+                                   list(size = 8),
+                                   list(size = 8)),
+                  ids = "inner") + 
+  geom_node_label(aes(label = paste0("Node ", id, ", (n= ", nodesize, ")")),
+                  fontface = "bold",
+                  ids = "terminal",
+                  size = 2, 
+                  nudge_y = 0.01) +
+  theme(legend.position = "none")
+```
+
+
+```{r}
+dff <- df %>% 
+  mutate(clase = case_when(
+    cob.campo <= 36 ~ as.character("cob_low"),
+    TRUE ~ "cob_high"
+  ))
+
+ggscatter(dff, 
+          x = "cob.campo", 
+          y = "cob.dron",
+          add = "reg.line",
+  conf.int = TRUE, 
+  color = "clase", shape = "clase", 
+  xlab = expression('Cobertura'['campo']*' (%)'), 
+  ylab = expression('Cobertura'['dron']*' (%)')) + 
+  xlim(0,100) + ylim(0,100) + 
+  stat_cor(
+    label.y.npc="top", label.x.npc = "left",
+    aes(color = clase, 
+        label = paste(..rr.label.., ..p.label.., sep = "~`,`~")),
+    p.accuracy = 0.001,
+    r.accuracy = 0.001
+    )  + 
+  geom_abline(slope = 1) 
+
+```
+
+Y los RMSE
+```{r}
+dff.rmse_groups <- dff %>% group_by(clase) %>% 
+  summarise(rmse = round(
+    Metrics::rmse(cob.dron, cob.campo),4),
+    min = min(cob.campo), 
+    max = max(cob.campo),
+    rmsen.minmax = rmse / (max(cob.campo) - min(cob.campo))*100)
+
+dff.rmse_groups
+
+```
 
 
 
